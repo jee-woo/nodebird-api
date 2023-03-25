@@ -1,6 +1,8 @@
 const jwt = require("jsonwebtoken");
 const rateLimit = require("express-rate-limit");
-const User = require("../models/user");
+// const User = require("../models/user");
+const { Domain } = require("../models");
+const cors = require("cors");
 
 exports.isLoggedIn = (req, res, next) => {
   if (req.isAuthenticated()) {
@@ -42,13 +44,13 @@ exports.verifyToken = (req, res, next) => {
 };
 
 exports.apiLimiter = async (req, res, next) => {
-  let user;
-  if (res.locals.decoded.id) {
-    user = await User.findOne({ where: { id: res.locals.decoded.id } });
-  }
+  // let user;
+  // if (res.locals.decoded?.id) {
+  //   user = await User.findOne({ where: { id: res.locals.decoded.id } });
+  // }
   rateLimit({
     windowMs: 60 * 1000, // 1분동안
-    max: user?.type === "premium" ? 1000 : 10, // 10번 요청
+    max: 10, // 10번 요청
     handler(req, res) {
       res.status(this.statusCode).json({
         code: this.statusCode,
@@ -63,4 +65,18 @@ exports.deprecated = (req, res) => {
     code: 410,
     message: "새로운 버전 나왔습니다. 새로운 버전을 사용하세요.",
   });
+};
+
+exports.corsWhenDomailMatches = async (req, res, next) => {
+  const domain = await Domain.findOne({
+    where: { host: new URL(req.get("origin").host) }, // http://가 없어짐
+  });
+  if (domain) {
+    cors({
+      origin: req.get("origin"),
+      credentials: true,
+    });
+  } else {
+    next();
+  }
 };
